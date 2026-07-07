@@ -1,0 +1,177 @@
+/* ═══════════════════════════════════════════════════════════════
+   SEARCH-DASHBOARD.CSS
+   Estilos aislados para el buscador (barrio/nombre) y el botón
+   Dashboard. No sobreescribe clases de styles.css; usa nombres
+   propios (search-box__*, btn-dashboard) para no chocar con nada.
+   ═══════════════════════════════════════════════════════════════ */
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 32px;
+  min-width: 220px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.search-box:focus-within {
+  border-color: rgba(77, 159, 255, 0.5);
+  background: rgba(77, 159, 255, 0.06);
+}
+
+.search-box__icon {
+  color: #6b7c99;
+  flex-shrink: 0;
+}
+
+.search-box:focus-within .search-box__icon {
+  color: #4d9fff;
+}
+
+.search-box__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e6edf3;
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+  font-size: 12.5px;
+  min-width: 0;
+}
+
+.search-box__input::placeholder {
+  color: #6b7c99;
+}
+
+.search-box__clear {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #8899aa;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.search-box__clear:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+}
+
+.search-box__results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #0d1117;
+  border: 1px solid rgba(77, 159, 255, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 500;
+  display: none;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.search-box__results.open {
+  display: flex;
+}
+
+.search-box__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.search-box__item:hover {
+  background: rgba(77, 159, 255, 0.12);
+}
+
+.search-box__item-name {
+  font-size: 12.5px;
+  color: #e6edf3;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-box__item-barrio {
+  font-size: 10.5px;
+  color: #6b7c99;
+  font-family: var(--font-mono, 'Space Mono', monospace);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-box__empty,
+.search-box__more {
+  font-size: 11.5px;
+  color: #6b7c99;
+  padding: 10px;
+  text-align: center;
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+}
+
+/* ── BOTÓN DASHBOARD ── */
+.btn-dashboard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(77, 159, 255, 0.12);
+  border: 1px solid rgba(77, 159, 255, 0.3);
+  color: #4d9fff;
+  border-radius: 8px;
+  padding: 0 12px;
+  height: 32px;
+  font-family: var(--font-sans, 'DM Sans', sans-serif);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.btn-dashboard:hover {
+  background: rgba(77, 159, 255, 0.22);
+  border-color: rgba(77, 159, 255, 0.5);
+}
+
+/* ── OCULTAR SUBTÍTULO Y ESTADÍSTICAS SUPERIORES ──
+   Se ocultan solo visualmente (display:none) para dejar espacio
+   al buscador y al botón Dashboard. NO se eliminan del HTML
+   porque script.js escribe en #stat-total, #stat-km,
+   #stat-visible y #stat-lineas en cada renderAll(); borrarlos
+   del DOM rompería esa lógica original. */
+.topbar__sub,
+.topbar__meta {
+  display: none !important;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .search-box {
+    min-width: 160px;
+  }
+}
