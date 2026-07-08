@@ -5,400 +5,792 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Canales · Panel de completitud (tiempo real)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Inter:ital@0;1&display=swap" rel="stylesheet">
   <style>
-    /* ——— ALTA LEGIBILIDAD · PALETA DE ALTO CONTRASTE ——— */
+    /* =========================================================
+       DESIGN TOKENS — Dashboard Ejecutivo
+       Blanco / grises claros / azules elegantes / petróleo / marino
+       ========================================================= */
     :root{
-      --bg: #0a1f2e;
-      --bg-2: #153243;
-      --bg-3: #1c4055;
-      --line: #6aaac9;
-      --line-soft: rgba(110, 180, 215, 0.35);
-      --paper: #f2f9fe;
-      --paper-dim: #b6d6e8;
-      --amber: #f5b342;
-      --amber-strong: #f09b22;
-      --red: #f26b5e;
-      --green: #5fcf9a;
-      --ink: #05212f;
-      --radius: 2px;
+      /* superficies */
+      --surface-app:      #F4F6F9;
+      --surface-card:     #FFFFFF;
+      --surface-alt:      #F8FAFC;
+      --surface-sunken:   #EEF2F6;
+
+      /* marca / azules */
+      --blue-50:  #EFF6FC;
+      --blue-100: #DCEBF7;
+      --blue-500: #2F7CC4;
+      --blue-600: #1D66AC;
+      --petrol-600: #0E5266;
+      --petrol-700: #0A3E4E;
+      --navy-800: #0F2A43;
+      --navy-900: #0B1D30;
+
+      /* texto */
+      --ink-900: #101828;
+      --ink-700: #344054;
+      --ink-500: #667085;
+      --ink-400: #98A2B3;
+      --ink-onbrand: #EAF3FB;
+
+      /* estado */
+      --green-600: #17915A;
+      --green-50:  #E9F9F1;
+      --amber-600: #B7791F;
+      --amber-50:  #FEF6E7;
+      --red-600:   #D0362C;
+      --red-50:    #FDECEC;
+
+      /* alias que usa app.js directamente en estilos en línea
+         (var(--green), var(--amber), var(--amber-strong), var(--red)) —
+         necesarios para que los colores de barras, badges y el sello
+         de completitud se pinten correctamente. NO renombrar. */
+      --green: var(--green-600);
+      --amber: #D99A2B;
+      --amber-strong: var(--amber-600);
+      --red: var(--red-600);
+
+      /* bordes / sombras */
+      --line: #E4E9EF;
+      --line-strong: #D5DCE5;
+      --shadow-xs: 0 1px 2px rgba(16,24,40,.05);
+      --shadow-sm: 0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
+      --shadow-md: 0 4px 10px rgba(16,24,40,.08), 0 2px 4px rgba(16,24,40,.04);
+      --shadow-lg: 0 12px 28px rgba(16,24,40,.12), 0 4px 10px rgba(16,24,40,.06);
+
+      /* radios / ritmo */
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 18px;
+      --r-pill: 999px;
+      --gap: 20px;
+
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-display: 'Manrope', 'Inter', sans-serif;
+
+      --sidebar-w: 248px;
+      --sidebar-w-collapsed: 76px;
+      --topbar-h: 64px;
     }
+
     *{box-sizing:border-box;}
     html,body{margin:0;padding:0;}
     body{
-      background:
-        linear-gradient(var(--line-soft) 1px, transparent 1px),
-        linear-gradient(90deg, var(--line-soft) 1px, transparent 1px),
-        linear-gradient(var(--bg) , var(--bg));
-      background-size: 32px 32px, 32px 32px, cover;
-      background-color: var(--bg);
-      color: var(--paper);
-      font-family: 'IBM Plex Sans', sans-serif;
-      min-height:100vh;
-      padding: 28px 20px 80px;
+      background: var(--surface-app);
+      color: var(--ink-900);
+      font-family: var(--font-ui);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
     }
-    .wrap{max-width:1240px;margin:0 auto;}
+    ::selection{ background: var(--blue-100); color: var(--navy-800); }
+    ::-webkit-scrollbar{ width:8px; height:8px; }
+    ::-webkit-scrollbar-thumb{ background: var(--line-strong); border-radius: var(--r-pill); }
+    ::-webkit-scrollbar-track{ background: transparent; }
 
-    /* ---------- title block ---------- */
-    .titleblock{
-      border: 2px solid var(--line);
-      background: var(--bg-2);
+    a{ color: var(--blue-600); }
+
+    /* =========================================================
+       SHELL — sidebar + topbar + main
+       ========================================================= */
+    .shell{
       display:grid;
-      grid-template-columns: 1fr auto;
-      align-items:stretch;
-      margin-bottom:22px;
-      position:relative;
-      box-shadow: 0 0 0 1px rgba(255,255,220,0.1);
+      grid-template-columns: var(--sidebar-w) 1fr;
+      min-height:100vh;
+      transition: grid-template-columns .2s ease;
     }
-    .titleblock::before, .titleblock::after{
-      content:"";
-      position:absolute; width:12px; height:12px;
-      border-top:2px solid var(--paper); border-left:2px solid var(--paper);
-      top:-1px; left:-1px;
+    .shell.collapsed{ grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
+
+    /* ---- Sidebar ---- */
+    .sidebar{
+      background: linear-gradient(180deg, var(--navy-900), var(--petrol-700) 130%);
+      color: var(--ink-onbrand);
+      padding: 20px 14px;
+      display:flex; flex-direction:column; gap:6px;
+      position: sticky; top:0; height:100vh; overflow-y:auto;
     }
-    .titleblock::after{ top:auto; left:auto; bottom:-1px; right:-1px; transform:rotate(180deg); }
-    .tb-main{padding:22px 26px;}
-    .tb-eyebrow{
-      font-family:'IBM Plex Mono', monospace;
-      font-size:12px; letter-spacing:.2em; text-transform:uppercase;
-      color: var(--line); margin:0 0 10px;
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      padding: 8px 10px 20px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      margin-bottom: 14px;
+      white-space:nowrap; overflow:hidden;
+    }
+    .brand-mark{
+      width:36px; height:36px; border-radius: var(--r-sm);
+      background: linear-gradient(135deg, var(--blue-500), var(--petrol-600));
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-mark svg{ width:20px; height:20px; color:#fff; }
+    .brand-text{ overflow:hidden; }
+    .brand-title{ font-family:var(--font-display); font-weight:800; font-size:14.5px; letter-spacing:.01em; }
+    .brand-sub{ font-size:11.5px; color:#9FC1D6; margin-top:1px; }
+    .shell.collapsed .brand-text, .shell.collapsed .nav-label, .shell.collapsed .navgroup-label{ display:none; }
+
+    .navgroup-label{
+      font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#77A0B6;
+      padding: 14px 12px 6px; font-weight:600;
+    }
+    .navitem{
+      display:flex; align-items:center; gap:12px;
+      padding: 10px 12px; border-radius: var(--r-sm);
+      color:#CFE3EF; font-size:13.5px; font-weight:500;
+      cursor:pointer; transition: background .12s ease, color .12s ease;
+      white-space:nowrap;
+    }
+    .navitem svg{ width:18px; height:18px; flex-shrink:0; opacity:.85; }
+    .navitem:hover{ background: rgba(255,255,255,.07); color:#fff; }
+    .navitem.active{ background: rgba(63,150,208,.22); color:#fff; box-shadow: inset 2px 0 0 var(--blue-500); }
+
+    .sidebar-foot{
+      margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,.08);
+    }
+    .sidebar-collapse-btn{
+      display:flex; align-items:center; gap:10px; width:100%;
+      background:transparent; border:1px solid rgba(255,255,255,.12); color:#CFE3EF;
+      border-radius: var(--r-sm); padding:9px 12px; font-size:12.5px; cursor:pointer;
+      font-family: var(--font-ui);
+    }
+    .sidebar-collapse-btn:hover{ background: rgba(255,255,255,.06); }
+    .sidebar-collapse-btn svg{ width:16px; height:16px; transition: transform .2s ease; }
+    .shell.collapsed .sidebar-collapse-btn svg{ transform: rotate(180deg); }
+
+    /* ---- Topbar ---- */
+    .topbar{
+      position: sticky; top:0; z-index:20;
+      height: var(--topbar-h);
+      background: rgba(255,255,255,.86);
+      backdrop-filter: saturate(180%) blur(10px);
+      border-bottom: 1px solid var(--line);
+      display:flex; align-items:center; gap:16px;
+      padding: 0 24px;
+    }
+    .topbar-search{
+      display:flex; align-items:center; gap:8px;
+      background: var(--surface-sunken); border:1px solid var(--line);
+      border-radius: var(--r-pill); padding: 8px 14px; min-width: 260px;
+      color: var(--ink-500); font-size:13.5px;
+    }
+    .topbar-search svg{ width:16px; height:16px; flex-shrink:0; }
+    .topbar-search input{
+      border:none; background:transparent; outline:none; font-size:13.5px;
+      font-family: var(--font-ui); color: var(--ink-900); width:100%;
+    }
+    .topbar-stats{
+      display:flex; align-items:center; gap:22px; margin-left:8px;
+      font-size:12.5px; color: var(--ink-500);
+    }
+    .topbar-stat{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
+    .topbar-stat b{ color: var(--ink-900); font-weight:600; font-family: var(--font-display); }
+    .topbar-stat svg{ width:15px; height:15px; color: var(--ink-400); }
+    .conn-pill{
+      display:flex; align-items:center; gap:7px;
+      padding: 5px 12px; border-radius: var(--r-pill);
+      background: var(--green-50); color: var(--green-600);
+      font-weight:600; font-size:12px;
+    }
+    .conn-pill.warn{ background: var(--amber-50); color: var(--amber-600); }
+    .conn-pill.err{ background: var(--red-50); color: var(--red-600); }
+    .conn-dot{ width:7px; height:7px; border-radius:50%; background: currentColor; }
+    .conn-dot.loading{ animation: pulse 1.1s ease-in-out infinite; }
+    @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+
+    .topbar-right{ margin-left:auto; display:flex; align-items:center; gap:14px; }
+    .icon-btn{
+      width:36px; height:36px; border-radius: var(--r-sm);
+      display:flex; align-items:center; justify-content:center;
+      background: transparent; border:1px solid transparent; color: var(--ink-500);
+      cursor:pointer; position:relative;
+    }
+    .icon-btn:hover{ background: var(--surface-sunken); border-color: var(--line); color: var(--ink-900); }
+    .icon-btn svg{ width:18px; height:18px; }
+    .notif-dot{
+      position:absolute; top:6px; right:7px; width:7px; height:7px; border-radius:50%;
+      background: var(--red-600); box-shadow: 0 0 0 2px #fff;
+    }
+    .user-chip{ display:flex; align-items:center; gap:10px; padding-left:14px; border-left:1px solid var(--line); }
+    .avatar{
+      width:34px; height:34px; border-radius:50%;
+      background: linear-gradient(135deg, var(--blue-500), var(--petrol-600));
+      display:flex; align-items:center; justify-content:center;
+      color:#fff; font-family:var(--font-display); font-weight:700; font-size:13px;
+    }
+    .user-meta{ line-height:1.25; }
+    .user-name{ font-size:13px; font-weight:600; color: var(--ink-900); }
+    .user-role{ font-size:11.5px; color: var(--ink-500); }
+
+    @media (max-width: 980px){
+      .topbar-stats{ display:none; }
+      .topbar-search{ min-width:160px; }
+    }
+
+    /* ---- Main ---- */
+    .main{ padding: 26px 30px 70px; max-width: 1360px; transition: padding .2s ease; }
+    .shell.collapsed .navitem{ justify-content:center; }
+    .shell.collapsed .brand{ justify-content:center; }
+    .shell.collapsed .sidebar-collapse-btn{ justify-content:center; }
+    [data-scroll-target]{ scroll-margin-top: calc(var(--topbar-h) + 18px); }
+
+    /* page header (contenido original del titleblock) */
+    .page-header{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
+      margin-bottom: 22px; flex-wrap:wrap;
+    }
+    .ph-eyebrow{
+      font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+      color: var(--blue-600); margin:0 0 8px;
     }
     h1{
-      font-family:'Space Grotesk', sans-serif;
-      font-size: clamp(26px, 3.6vw, 38px);
-      margin:0 0 6px; font-weight:700; color:var(--paper);
-      letter-spacing:-0.01em;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      font-family: var(--font-display); font-weight:800; letter-spacing:-.01em;
+      font-size: clamp(22px, 2.4vw, 30px); color: var(--ink-900); margin:0 0 8px;
     }
-    .tb-sub{color:var(--paper-dim); font-size:15px; max-width:64ch; line-height:1.5; margin:0;}
-    .tb-meta{
-      border-left: 2px solid var(--line);
-      font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--paper-dim);
-      padding:20px 24px; display:flex; flex-direction:column; justify-content:center; gap:12px; min-width:200px;
-      background: rgba(0,0,0,0.15);
+    .ph-sub{ color: var(--ink-500); font-size:14.5px; line-height:1.6; max-width:66ch; margin:0; }
+    .ph-sub code{
+      background: var(--blue-50); color: var(--blue-600); border-radius:6px;
+      padding: 1px 7px; font-family: 'IBM Plex Mono', monospace; font-size:12.5px;
     }
-    .tb-meta div span{display:block; color:var(--paper); font-size:15px; font-weight:600; margin-top:2px;}
-    .tb-meta .live-dot{display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--green); margin-right:6px; box-shadow:0 0 0 3px rgba(95,207,154,0.2);}
-    .tb-meta .live-dot.err{background:var(--red); box-shadow:0 0 0 3px rgba(242,107,94,0.2);}
-    .tb-meta .live-dot.loading{background:var(--amber); box-shadow:0 0 0 3px rgba(245,179,66,0.2); animation: pulse 1.1s ease-in-out infinite;}
-    @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+    .ph-meta{
+      display:flex; flex-direction:column; gap:10px; min-width:210px;
+      background: var(--surface-card); border:1px solid var(--line); border-radius: var(--r-md);
+      padding:16px 18px; box-shadow: var(--shadow-xs);
+    }
+    .ph-meta-row{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; color: var(--ink-500); }
+    .ph-meta-row span:last-child{ color: var(--ink-900); font-weight:600; font-family: var(--font-display); }
+    .live-dot{ width:8px; height:8px; border-radius:50%; background: var(--green-600); display:inline-block; margin-right:6px; }
+    .live-dot.loading{ background: var(--amber-600); animation: pulse 1.1s ease-in-out infinite; }
+    .live-dot.err{ background: var(--red-600); }
 
-    /* ---------- status panel (load state) ---------- */
+    /* ---- status panel (estado de carga/conexión) ---- */
     .status-panel{
-      border: 2px solid var(--line-soft);
-      background: rgba(255,255,255,0.03);
-      padding: 30px 26px;
-      margin-bottom: 28px;
-      position:relative;
-      box-shadow: inset 0 0 30px rgba(0,0,0,0.25);
+      display:flex; align-items:center; gap:16px;
+      background: var(--surface-card); border:1px solid var(--line); border-left:4px solid var(--amber-600);
+      border-radius: var(--r-md); padding:18px 20px; margin-bottom:24px;
+      box-shadow: var(--shadow-xs);
     }
-    .status-panel .sp-corner{position:absolute; width:16px; height:16px; border-color:var(--line); border-style:solid; border-width:0;}
-    .status-panel .sp-corner.tl{top:8px;left:8px;border-top-width:2px;border-left-width:2px;}
-    .status-panel .sp-corner.tr{top:8px;right:8px;border-top-width:2px;border-right-width:2px;}
-    .status-panel .sp-corner.bl{bottom:8px;left:8px;border-bottom-width:2px;border-left-width:2px;}
-    .status-panel .sp-corner.br{bottom:8px;right:8px;border-bottom-width:2px;border-right-width:2px;}
-    .sp-row{display:flex; align-items:center; gap:16px;}
-    .sp-icon{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid var(--line-soft);}
-    .sp-icon svg{width:20px;height:20px;}
-    .sp-text p{margin:0;}
-    .sp-title{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px; color:var(--paper); margin-bottom:4px !important;}
-    .sp-sub{color:var(--paper-dim); font-size:13.5px; line-height:1.5;}
-    .sp-sub code{background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:2px; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--amber);}
-    .sp-actions{margin-top:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
-    .status-panel.state-loading .sp-icon{color:var(--amber-strong); border-color:var(--amber-strong);}
-    .status-panel.state-error .sp-icon{color:var(--red); border-color:var(--red);}
-    .status-panel.state-ok .sp-icon{color:var(--green); border-color:var(--green);}
+    .status-panel.state-error{ border-left-color: var(--red-600); }
+    .status-panel.state-ok{ border-left-color: var(--green-600); }
+    .sp-icon{
+      width:42px; height:42px; border-radius: var(--r-sm); flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      background: var(--amber-50); color: var(--amber-600);
+    }
+    .status-panel.state-error .sp-icon{ background: var(--red-50); color: var(--red-600); }
+    .status-panel.state-ok .sp-icon{ background: var(--green-50); color: var(--green-600); }
+    .sp-icon svg{ width:20px; height:20px; }
+    .sp-text{ flex:1; }
+    .sp-title{ font-weight:700; font-size:14.5px; color: var(--ink-900); margin:0 0 3px; }
+    .sp-sub{ color: var(--ink-500); font-size:13px; line-height:1.5; margin:0; }
+    .sp-sub code{ background: var(--surface-sunken); padding:1px 6px; border-radius:5px; font-family:'IBM Plex Mono', monospace; font-size:12px; color: var(--ink-700); }
+    .sp-actions{ margin-top:0; flex-shrink:0; }
 
-    #fileInput{display:none;}
+    #fileInput{ display:none; }
+    .hidden{ display:none !important; }
+
+    /* ---- buttons ---- */
     .btn{
-      font-family:'IBM Plex Mono', monospace;
-      background: transparent; border:2px solid var(--paper); color:var(--paper);
-      padding:10px 20px; font-size:13px; letter-spacing:.08em; text-transform:uppercase;
-      cursor:pointer; transition: all .15s ease;
-      font-weight:600;
+      font-family: var(--font-ui); font-weight:600; font-size:13px;
+      background: var(--blue-600); color:#fff; border:1px solid var(--blue-600);
+      padding:9px 16px; border-radius: var(--r-sm); cursor:pointer;
+      transition: background .12s ease, box-shadow .12s ease, transform .05s ease;
+      box-shadow: var(--shadow-xs);
     }
-    .btn:hover{background:var(--paper); color:var(--ink);}
-    .btn.small{padding:6px 14px; font-size:12px;}
-    .btn.accent{border-color:var(--amber-strong); color:var(--amber-strong);}
-    .btn.accent:hover{background:var(--amber-strong); color:var(--ink);}
+    .btn:hover{ background: var(--blue-500); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.small{ padding:7px 13px; font-size:12.5px; }
+    .btn.accent{ background:#fff; color: var(--amber-600); border-color: var(--amber-600); }
+    .btn.accent:hover{ background: var(--amber-50); }
 
-    .hidden{display:none !important;}
+    /* =========================================================
+       KPI CARDS
+       ========================================================= */
+    .grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); margin-bottom:22px; }
+    @media (max-width:1180px){ .grid{ grid-template-columns: repeat(2,1fr); } }
+    @media (max-width:560px){ .grid{ grid-template-columns: 1fr; } }
 
-    /* ---------- dashboard cards ---------- */
-    .grid{display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:18px;}
-    @media(max-width:900px){.grid{grid-template-columns: repeat(2,1fr);}}
     .card{
-      border:2px solid var(--line-soft);
-      background: var(--bg-2);
-      padding:18px 20px;
-      position:relative;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+      background: var(--surface-card); border:1px solid var(--line); border-radius: var(--r-lg);
+      padding:20px 22px; position:relative; box-shadow: var(--shadow-sm);
+      transition: box-shadow .15s ease, transform .15s ease;
     }
-    .card .tick{position:absolute; top:10px; right:10px; width:8px; height:8px; background:var(--line);}
-    .card-label{font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--paper-dim); margin:0 0 10px;}
-    .card-value{font-family:'Space Grotesk', sans-serif; font-size:34px; font-weight:700; color:var(--paper); line-height:1;}
-    .card-value.amber{color:var(--amber-strong);}
-    .card-value.green{color:var(--green);}
-    .card-sub{font-size:13px; color:var(--paper-dim); margin-top:8px;}
+    .card:hover{ box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .card .tick{
+      position:absolute; top:18px; right:18px; width:30px; height:30px; border-radius: var(--r-sm);
+      background: var(--blue-50); color: var(--blue-600); display:flex; align-items:center; justify-content:center;
+    }
+    .card .tick svg{ width:16px; height:16px; }
+    .card-label{ font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color: var(--ink-500); margin:0 0 10px; }
+    .card-value{ font-family: var(--font-display); font-size:32px; font-weight:800; color: var(--ink-900); line-height:1; letter-spacing:-.01em; }
+    .card-value.amber{ color: var(--amber-600); }
+    .card-value.green{ color: var(--green-600); }
+    .card-sub{ font-size:13px; color: var(--ink-500); margin-top:9px; }
 
-    .stamp-card{display:flex; align-items:center; gap:18px;}
+    .stamp-card{ display:flex; align-items:center; gap:18px; }
     .stamp{
-      width:84px; height:84px; border-radius:50%;
-      border: 3px solid var(--stamp-color, var(--amber-strong));
-      display:flex; align-items:center; justify-content:center; flex-direction:column;
-      transform: rotate(-6deg);
-      color: var(--stamp-color, var(--amber-strong));
-      font-family:'Space Grotesk', sans-serif;
-      flex-shrink:0;
-      background: rgba(0,0,0,0.3);
-      box-shadow: 0 0 0 2px var(--bg);
+      width:78px; height:78px; border-radius:50%; flex-shrink:0;
+      background: conic-gradient(var(--stamp-color, var(--amber-600)) calc(var(--stamp-deg, 180deg)), var(--surface-sunken) 0);
+      display:flex; align-items:center; justify-content:center;
     }
-    .stamp b{font-size:24px; line-height:1;}
-    .stamp span{font-family:'IBM Plex Mono', monospace; font-size:8px; letter-spacing:.1em; text-transform:uppercase; margin-top:2px;}
+    .stamp::after{
+      content:""; position:absolute;
+    }
+    .stamp-inner{
+      width:60px; height:60px; border-radius:50%; background:#fff;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+    .stamp b{ font-family: var(--font-display); font-size:18px; color: var(--stamp-color, var(--amber-600)); line-height:1; }
+    .stamp span{ font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color: var(--ink-500); margin-top:3px; font-weight:600; }
 
-    /* ---------- section heading ---------- */
+    /* =========================================================
+       SECTION HEADINGS
+       ========================================================= */
     .section-title{
-      font-family:'IBM Plex Mono', monospace; font-size:13px; text-transform:uppercase; letter-spacing:.16em;
-      color: var(--line); margin: 34px 0 14px; display:flex; align-items:center; gap:12px;
+      display:flex; align-items:center; gap:12px; margin: 30px 0 14px;
+      font-size:13.5px; font-weight:700; color: var(--ink-900);
     }
-    .section-title::after{content:""; flex:1; height:2px; background:var(--line-soft);}
+    .section-title::after{ content:""; flex:1; height:1px; background: var(--line); }
     .section-title .count-chip{
-      font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink); background:var(--line);
-      padding:2px 8px; letter-spacing:.05em;
+      font-size:11px; font-weight:700; color: var(--blue-600); background: var(--blue-50);
+      padding:3px 10px; border-radius: var(--r-pill); letter-spacing:.02em;
     }
 
-    /* ---------- missing-field bars ---------- */
-    .panel{border:2px solid var(--line-soft); background:var(--bg-2); padding:20px 24px;}
-    .bar-row{display:grid; grid-template-columns: 170px 1fr 90px; align-items:center; gap:14px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06);}
-    .bar-row:last-child{border-bottom:none;}
-    .bar-label{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--paper-dim);}
-    .bar-track{height:18px; background:rgba(255,255,255,0.08); position:relative; overflow:hidden;}
-    .bar-fill{height:100%; background: repeating-linear-gradient(135deg, var(--amber-strong), var(--amber-strong) 5px, #d97f1a 5px, #d97f1a 10px); transition: width .4s ease;}
-    .bar-pct{font-family:'IBM Plex Mono', monospace; font-size:12.5px; text-align:right; color:var(--amber-strong); font-weight:600;}
-    .bar-pct .n{color:var(--paper-dim); font-weight:500;}
+    .panel{ background: var(--surface-card); border:1px solid var(--line); border-radius: var(--r-lg); padding:22px 24px; box-shadow: var(--shadow-xs); }
 
-    .two-col{display:grid; grid-template-columns: 1fr 1fr; gap:20px;}
-    @media(max-width:800px){.two-col{grid-template-columns:1fr;}}
-    .mini-row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:14px;}
-    .mini-row:last-child{border-bottom:none;}
-    .mini-name{color:var(--paper);}
-    .mini-val{font-family:'IBM Plex Mono', monospace; color:var(--paper-dim); display:flex; align-items:center; gap:10px;}
-    .dot{width:10px; height:10px; border-radius:50%; display:inline-block; flex-shrink:0;}
-    .scroll-cap{max-height:280px; overflow-y:auto; padding-right:4px;}
-    .scroll-cap::-webkit-scrollbar{width:6px;}
-    .scroll-cap::-webkit-scrollbar-thumb{background:var(--line-soft);}
+    /* barras de campos faltantes */
+    .bar-row{ display:grid; grid-template-columns: 170px 1fr 92px; align-items:center; gap:16px; padding:10px 0; border-bottom:1px solid var(--surface-sunken); }
+    .bar-row:last-child{ border-bottom:none; }
+    .bar-label{ font-size:13.5px; color: var(--ink-700); font-weight:500; }
+    .bar-track{ height:10px; background: var(--surface-sunken); border-radius: var(--r-pill); position:relative; overflow:hidden; }
+    .bar-fill{ height:100%; border-radius: var(--r-pill); background: linear-gradient(90deg, var(--amber-600), #E0A83B); transition: width .5s cubic-bezier(.4,0,.2,1); }
+    .bar-pct{ font-size:13px; text-align:right; color: var(--amber-600); font-weight:700; font-family: var(--font-display); }
+    .bar-pct .n{ color: var(--ink-400); font-weight:500; font-family: var(--font-ui); }
 
-    /* ---------- controls ---------- */
-    .controls{display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;}
+    .two-col{ display:grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+    @media (max-width:840px){ .two-col{ grid-template-columns:1fr; } }
+    .mini-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--surface-sunken); font-size:13.5px; }
+    .mini-row:last-child{ border-bottom:none; }
+    .mini-name{ color: var(--ink-900); font-weight:500; }
+    .mini-val{ color: var(--ink-500); display:flex; align-items:center; gap:10px; font-family: var(--font-display); font-weight:600; }
+    .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex-shrink:0; }
+    .scroll-cap{ max-height:340px; overflow-y:auto; padding-right:6px; }
+
+    /* =========================================================
+       CONTROLS / FILTERS
+       ========================================================= */
+    .controls{ display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center; }
     .controls input[type=text], .controls select{
-      font-family:'IBM Plex Sans', sans-serif;
-      background: var(--bg-2); border:2px solid var(--line-soft); color:var(--paper);
-      padding:10px 12px; font-size:14px;
+      font-family: var(--font-ui); background: var(--surface-card); border:1px solid var(--line);
+      color: var(--ink-900); border-radius: var(--r-sm); padding:10px 13px; font-size:13.5px;
+      box-shadow: var(--shadow-xs);
     }
-    .controls input[type=text]{min-width:220px;}
-    .controls label.chk{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--paper-dim); display:flex; align-items:center; gap:8px; cursor:pointer;}
-    .tabbtns{display:flex; gap:0; border:2px solid var(--line-soft);}
+    .controls input[type=text]:focus, .controls select:focus{ outline: 2px solid var(--blue-100); border-color: var(--blue-500); }
+    .controls input[type=text]{ min-width:230px; }
+    .controls label.chk{ font-size:13px; color: var(--ink-700); display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:500; }
+    .controls label.chk input{ accent-color: var(--blue-600); width:15px; height:15px; }
+
+    .tabbtns{ display:flex; gap:2px; background: var(--surface-sunken); padding:3px; border-radius: var(--r-sm); }
     .tabbtns button{
-      font-family:'IBM Plex Mono', monospace; font-size:12px; text-transform:uppercase; letter-spacing:.08em;
-      background:transparent; color:var(--paper-dim); border:none; padding:10px 18px; cursor:pointer;
-      font-weight:500;
+      font-family: var(--font-ui); font-size:12.5px; font-weight:600; letter-spacing:.01em;
+      background:transparent; color: var(--ink-500); border:none; border-radius:7px;
+      padding:8px 15px; cursor:pointer; transition: all .12s ease;
     }
-    .tabbtns button.active{background:var(--amber-strong); color:var(--ink); font-weight:700;}
-    .results-count{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--paper-dim); margin-left:auto;}
+    .tabbtns button.active{ background:#fff; color: var(--ink-900); box-shadow: var(--shadow-xs); }
+    .results-count{ font-size:12.5px; color: var(--ink-500); margin-left:auto; font-weight:500; }
 
-    /* ---------- table ---------- */
-    .table-scroll{border:2px solid var(--line-soft); border-bottom:none; max-height:640px; overflow:auto; background:var(--bg-2);}
-    table{width:100%; border-collapse:collapse; font-size:14px;}
+    /* =========================================================
+       TABLE
+       ========================================================= */
+    .table-scroll{
+      border:1px solid var(--line); border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom:none;
+      max-height: min(72vh, 900px); min-height: 320px;
+      overflow-x:auto; overflow-y:auto;
+      background: var(--surface-card); box-shadow: var(--shadow-xs);
+    }
+    table{ width:100%; min-width:820px; border-collapse:collapse; font-size:13.5px; table-layout:auto; }
     thead th{
-      position:sticky; top:0; z-index:2;
-      font-family:'IBM Plex Mono', monospace; font-size:12px; text-transform:uppercase; letter-spacing:.08em;
-      text-align:left; padding:12px 14px; border-bottom:2px solid var(--line); color:var(--paper-dim);
-      cursor:pointer; user-select:none; white-space:nowrap;
-      background:var(--bg-3);
+      position:sticky; top:0; z-index:2; text-align:left; padding:13px 16px;
+      border-bottom:1px solid var(--line); background: var(--surface-alt);
+      font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+      color: var(--ink-500); cursor:pointer; user-select:none; white-space:nowrap;
     }
-    thead th:hover{color:var(--paper);}
-    thead th.sorted{color:var(--amber-strong);}
-    thead th .arrow{font-size:10px; margin-left:4px; opacity:.7;}
-    tbody td{padding:12px 14px; border-bottom:1px solid rgba(255,255,255,0.06); vertical-align:top;}
-    tbody tr{cursor:pointer;}
-    tbody tr:hover{background:rgba(255,255,255,0.04);}
-    tbody tr.even{background:rgba(255,255,255,0.015);}
-    .prog-cell{display:flex; align-items:center; gap:10px;}
-    .prog-track{width:80px; height:10px; background:rgba(255,255,255,0.08); position:relative;}
-    .prog-fill{height:100%;}
-    .badge{
-      font-family:'IBM Plex Mono', monospace; font-size:11px; padding:3px 10px; text-transform:uppercase;
-      border:2px solid currentColor; display:inline-block; letter-spacing:.06em; font-weight:600;
-    }
-    .detail-row td{background:var(--bg-3); padding:18px 24px;}
-    .detail-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 24px;}
-    @media(max-width:800px){.detail-grid{grid-template-columns:1fr 1fr;}}
-    .detail-item{font-size:13px; display:flex; justify-content:space-between; gap:12px; border-bottom:1px dotted rgba(255,255,255,0.15); padding:6px 0;}
-    .detail-item .k{color:var(--paper-dim); font-family:'IBM Plex Mono', monospace; font-size:12px;}
-    .detail-item .v{color:var(--paper); text-align:right;}
-    .detail-item.miss .v{color:var(--amber-strong);}
-    .detail-item .v a{color:var(--line); }
-    .missing-x{color:var(--amber-strong); font-weight:700;}
-    .ok-check{color:var(--green);}
+    thead th:hover{ color: var(--ink-900); }
+    thead th.sorted{ color: var(--blue-600); }
+    thead th .arrow{ font-size:10px; margin-left:4px; opacity:.7; }
+    thead th:nth-child(1){ width:64px; }
+    thead th:nth-child(2){ min-width:200px; }
+    thead th:nth-child(3){ min-width:160px; }
+    thead th:nth-child(4){ min-width:120px; }
+    thead th:nth-child(5){ min-width:110px; }
+    thead th:nth-child(6){ min-width:170px; }
+    tbody td{ padding:13px 16px; border-bottom:1px solid var(--surface-sunken); vertical-align:middle; color: var(--ink-700); overflow-wrap:anywhere; }
+    tbody tr{ cursor:pointer; transition: background .1s ease; }
+    tbody tr:hover{ background: var(--blue-50); }
+    tbody tr.even{ background: var(--surface-alt); }
+    tbody tr.even:hover{ background: var(--blue-50); }
 
-    /* ---------- pagination ---------- */
+    .prog-cell{ display:flex; align-items:center; gap:10px; }
+    .prog-track{ width:100px; height:8px; background: var(--surface-sunken); border-radius: var(--r-pill); position:relative; overflow:hidden; flex-shrink:0; }
+    .prog-fill{ height:100%; border-radius: var(--r-pill); }
+
+    .badge{
+      font-size:11px; font-weight:700; padding:4px 11px; text-transform:uppercase;
+      letter-spacing:.03em; border-radius: var(--r-pill); display:inline-block;
+      background: var(--surface-sunken); color: var(--ink-700);
+    }
+
+    .detail-row td{ background: var(--surface-alt); padding:14px; border-bottom:1px solid var(--line); }
+    .detail-row .detail-grid{
+      padding:20px 26px; border-left:4px solid var(--blue-600); background:#fff;
+      border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+      animation: slideUp .18s ease;
+    }
+    @keyframes slideUp{ from{ opacity:0; transform: translateY(-6px); } to{ opacity:1; transform:none; } }
+    .detail-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px 26px; }
+    @media (max-width:840px){ .detail-grid{ grid-template-columns:1fr 1fr; } }
+    .detail-item{ font-size:13px; display:flex; justify-content:space-between; gap:12px; border-bottom:1px dashed var(--line); padding:7px 0; }
+    .detail-item .k{ color: var(--ink-500); font-weight:500; }
+    .detail-item .v{ color: var(--ink-900); text-align:right; font-weight:600; }
+    .detail-item.miss .v{ color: var(--amber-600); }
+    .detail-item .v a{ color: var(--blue-600); }
+    .missing-x{ color: var(--amber-600); font-weight:700; }
+    .ok-check{ color: var(--green-600); }
+
+    /* =========================================================
+       PAGINATION
+       ========================================================= */
     .pager{
       display:flex; align-items:center; justify-content:space-between; gap:16px;
-      border:2px solid var(--line-soft); border-top:none;
-      background:var(--bg-2); padding:12px 16px;
-      font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--paper-dim);
+      border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg);
+      background: var(--surface-alt); padding:13px 18px; font-size:12.5px; color: var(--ink-500);
     }
-    .pager-btns{display:flex; gap:6px;}
+    .pager-btns{ display:flex; gap:6px; }
     .pager-btns button{
-      background:transparent; border:2px solid var(--line-soft); color:var(--paper-dim);
-      font-family:'IBM Plex Mono', monospace; font-size:12px; padding:5px 12px; cursor:pointer;
+      background:#fff; border:1px solid var(--line); color: var(--ink-700); border-radius: var(--r-sm);
+      font-size:12.5px; padding:6px 13px; cursor:pointer; font-family: var(--font-ui); font-weight:500;
     }
-    .pager-btns button:hover:not(:disabled){border-color:var(--line); color:var(--paper);}
-    .pager-btns button:disabled{opacity:.35; cursor:default;}
+    .pager-btns button:hover:not(:disabled){ border-color: var(--blue-500); color: var(--blue-600); }
+    .pager-btns button:disabled{ opacity:.4; cursor:default; }
 
-    /* group view */
-    .group-card{border:2px solid var(--line-soft); background:var(--bg-2); margin-bottom:12px;}
-    .group-head{display:flex; justify-content:space-between; align-items:center; padding:14px 20px; cursor:pointer;}
-    .group-head:hover{background:rgba(255,255,255,0.03);}
-    .group-name{font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px;}
-    .group-meta{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--paper-dim); display:flex; gap:20px; align-items:center;}
-    .group-body{display:none; padding:0 20px 16px;}
-    .group-body.open{display:block;}
+    /* =========================================================
+       GROUP VIEW
+       ========================================================= */
+    .group-card{ background: var(--surface-card); border:1px solid var(--line); border-radius: var(--r-md); margin-bottom:12px; box-shadow: var(--shadow-xs); overflow:hidden; }
+    .group-head{ display:flex; justify-content:space-between; align-items:center; padding:16px 20px; cursor:pointer; }
+    .group-head:hover{ background: var(--surface-alt); }
+    .group-name{ font-family: var(--font-display); font-weight:700; font-size:15px; color: var(--ink-900); }
+    .group-meta{ font-size:12.5px; color: var(--ink-500); display:flex; gap:20px; align-items:center; font-weight:500; }
+    .group-body{ display:none; padding:0 20px 18px; }
+    .group-body.open{ display:block; }
 
-    footer{margin-top:50px; text-align:center; color:var(--paper-dim); font-family:'IBM Plex Mono', monospace; font-size:12px;}
-    .empty-note{color:var(--paper-dim); font-size:15px; text-align:center; padding:40px;}
+    footer{ margin-top:50px; text-align:center; color: var(--ink-400); font-size:12.5px; }
+    .empty-note{ color: var(--ink-500); font-size:14.5px; text-align:center; padding:50px; }
+
+    @media (max-width: 700px){
+      .shell{ grid-template-columns: 1fr; }
+      .sidebar{ display:none; }
+      .main{ padding:20px 16px 60px; }
+      .page-header{ flex-direction:column; }
+    }
   </style>
 </head>
 <body>
-<div class="wrap">
+<div class="shell" id="appShell">
 
-  <div class="titleblock">
-    <div class="tb-main">
-      <p class="tb-eyebrow">Panel técnico · Levantamiento de datos</p>
-      <h1>Canales Fluviales — Completitud de la Información</h1>
-      <p class="tb-sub">Conectado en tiempo real a <code style="background:rgba(255,255,255,0.1); padding:0 6px;">Firebase Realtime Database</code>. Calcula al instante el % de datos que falta, qué campos están más y menos completos, y una tabla dinámica para explorar canal por canal. Cada cambio que se guarde en la base de datos se refleja aquí de inmediato, sin recargar ni subir archivos.</p>
-    </div>
-    <div class="tb-meta">
-      <div><span class="live-dot loading" id="liveDot"></span>ESTADO<span id="metaStatus">Conectando…</span></div>
-      <div>REGISTROS<span id="metaCount">0</span></div>
-      <div>ÚLTIMA ACTUALIZACIÓN<span id="metaDate">—</span></div>
-    </div>
-  </div>
-
-  <!-- ESTADO DE CARGA / CONEXIÓN -->
-  <div class="status-panel state-loading" id="statusPanel">
-    <div class="sp-corner tl"></div><div class="sp-corner tr"></div><div class="sp-corner bl"></div><div class="sp-corner br"></div>
-    <div class="sp-row">
-      <div class="sp-icon" id="spIcon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9" stroke-dasharray="42 14"/></svg>
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
       </div>
-      <div class="sp-text">
-        <p class="sp-title" id="spTitle">Conectando con Firebase…</p>
-        <p class="sp-sub" id="spSub">Suscribiéndose en tiempo real a la base de datos <code>canalesfluviales</code>.</p>
+      <div class="brand-text">
+        <div class="brand-title">Canales Fluviales</div>
+        <div class="brand-sub">Panel de completitud</div>
       </div>
     </div>
-    <div class="sp-actions hidden" id="spActions">
-      <button class="btn accent small" id="retryBtn">Reintentar conexión</button>
+
+    <div class="navgroup-label">Panel</div>
+    <div class="navitem active" data-goto="secResumen" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span class="nav-label">Resumen ejecutivo</span>
     </div>
-  </div>
+    <div class="navitem" data-goto="secIndicadores" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></svg>
+      <span class="nav-label">Indicadores</span>
+    </div>
+    <div class="navitem" data-goto="secCanales" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span class="nav-label">Canales</span>
+    </div>
+    <div class="navitem" data-goto="secLocalidades" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-6"/></svg>
+      <span class="nav-label">Localidades</span>
+    </div>
 
-  <div id="app" class="hidden">
+    <div class="navgroup-label">Sistema</div>
+    <div class="navitem" data-goto="secConfig" tabindex="0" role="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.98 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.55-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 8.98a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.03-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9c.14.36.44.63 1.55 1.03H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg>
+      <span class="nav-label">Configuración</span>
+    </div>
 
-    <div class="grid">
-      <div class="card stamp-card" style="--stamp-color: var(--amber-strong);" id="stampCard">
-        <div class="stamp" id="stampCircle"><b id="stampPct">0%</b><span id="stampWord">en curso</span></div>
+    <div class="sidebar-foot">
+      <button class="sidebar-collapse-btn" id="sidebarToggle" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19l-7-7 7-7M20 19l-7-7 7-7"/></svg>
+        <span class="nav-label">Contraer menú</span>
+      </button>
+    </div>
+  </aside>
+
+  <div>
+    <!-- ============ TOPBAR ============ -->
+    <header class="topbar">
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="text" placeholder="Buscar en el panel…" aria-label="Buscar en el panel">
+      </div>
+
+      <div class="topbar-stats">
+        <div class="topbar-stat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <span id="topbarClock">--:--</span>
+        </div>
+        <div class="topbar-stat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
+          Sync <b id="metaDate">—</b>
+        </div>
+        <div class="topbar-stat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+          <b id="metaCount">0</b>&nbsp;registros
+        </div>
+      </div>
+
+      <div class="conn-pill" id="connPill">
+        <span class="conn-dot loading" id="liveDot"></span>
+        <span id="metaStatus">Conectando…</span>
+      </div>
+
+      <div class="topbar-right">
+        <button class="icon-btn" type="button" title="Notificaciones">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="notif-dot"></span>
+        </button>
+        <div class="user-chip">
+          <div class="avatar">DC</div>
+          <div class="user-meta">
+            <div class="user-name">Equipo de datos</div>
+            <div class="user-role">Sesión activa</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ MAIN ============ -->
+    <main class="main">
+
+      <div class="page-header">
         <div>
-          <p class="card-label" style="margin-bottom:4px;">Completitud global</p>
-          <p class="card-sub" style="margin-top:0;">de todos los campos, en todos los canales</p>
+          <p class="ph-eyebrow">Panel técnico · Levantamiento de datos</p>
+          <h1>Canales Fluviales — Completitud de la Información</h1>
+          <p class="ph-sub">Conectado en tiempo real a <code>Firebase Realtime Database</code>. Calcula al instante el % de datos que falta, qué campos están más y menos completos, y una tabla dinámica para explorar canal por canal. Cada cambio que se guarde en la base de datos se refleja aquí de inmediato, sin recargar ni subir archivos.</p>
+        </div>
+        <div class="ph-meta">
+          <div class="ph-meta-row"><span>Origen</span><span>Firebase RTDB</span></div>
+          <div class="ph-meta-row"><span>Modo</span><span>Tiempo real</span></div>
+          <div class="ph-meta-row"><span>Cobertura</span><span>Todos los canales</span></div>
         </div>
       </div>
-      <div class="card">
-        <div class="tick"></div>
-        <p class="card-label">Canales registrados</p>
-        <p class="card-value" id="cardTotal">0</p>
-        <p class="card-sub" id="cardTotalSub"></p>
-      </div>
-      <div class="card">
-        <div class="tick"></div>
-        <p class="card-label">Lo que más falta</p>
-        <p class="card-value amber" id="cardWorstPct">0%</p>
-        <p class="card-sub" id="cardWorstField">—</p>
-      </div>
-      <div class="card">
-        <div class="tick"></div>
-        <p class="card-label">Lo que menos falta</p>
-        <p class="card-value green" id="cardBestPct">0%</p>
-        <p class="card-sub" id="cardBestField">—</p>
-      </div>
-    </div>
 
-    <p class="section-title">% de canales a los que les falta cada dato <span class="count-chip" id="fieldsChip">12 campos</span></p>
-    <div class="panel">
-      <div id="barList"></div>
-    </div>
-
-    <p class="section-title">Desgloses</p>
-    <div class="two-col">
-      <div class="panel">
-        <p class="card-label" style="margin-bottom:12px;">Por localidad</p>
-        <div id="byLocalidad" class="scroll-cap"></div>
-      </div>
-      <div class="panel">
-        <p class="card-label" style="margin-bottom:12px;">Por estado del canal</p>
-        <div id="byEstado" class="scroll-cap"></div>
-      </div>
-    </div>
-
-    <p class="section-title">Explorar canales</p>
-    <div class="controls">
-      <div class="tabbtns">
-        <button class="active" data-view="list">Lista</button>
-        <button data-view="localidad">Agrupar por localidad</button>
-        <button data-view="estado">Agrupar por estado</button>
-      </div>
-      <input type="text" id="searchBox" placeholder="Buscar por nombre o barrio…">
-      <select id="filterLocalidad"><option value="">Todas las localidades</option></select>
-      <select id="filterEstado"><option value="">Todos los estados</option></select>
-      <label class="chk"><input type="checkbox" id="onlyIncomplete"> Solo con datos faltantes</label>
-      <span class="results-count" id="resultsCount"></span>
-    </div>
-
-    <div id="listView">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th data-key="id">ID</th>
-              <th data-key="nombre">Canal</th>
-              <th data-key="localidadNombre">Localidad</th>
-              <th data-key="estado">Estado</th>
-              <th data-key="disenios">Diseños</th>
-              <th data-key="completeness">Completitud</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
-      </div>
-      <div class="pager" id="pager">
-        <span id="pagerInfo">—</span>
-        <div class="pager-btns">
-          <button id="pagerFirst">« Primera</button>
-          <button id="pagerPrev">‹ Anterior</button>
-          <button id="pagerNext">Siguiente ›</button>
-          <button id="pagerLast">Última »</button>
+      <!-- ESTADO DE CARGA / CONEXIÓN -->
+      <div class="status-panel state-loading" id="statusPanel">
+        <div class="sp-icon" id="spIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" stroke-dasharray="42 14"/></svg>
+        </div>
+        <div class="sp-text">
+          <p class="sp-title" id="spTitle">Conectando con Firebase…</p>
+          <p class="sp-sub" id="spSub">Suscribiéndose en tiempo real a la base de datos <code>canalesfluviales</code>.</p>
+        </div>
+        <div class="sp-actions hidden" id="spActions">
+          <button class="btn accent small" id="retryBtn">Reintentar conexión</button>
         </div>
       </div>
-    </div>
 
-    <div id="groupView" class="hidden"></div>
+      <div id="app" class="hidden">
 
+        <div class="grid" id="secResumen" data-scroll-target>
+          <div class="card stamp-card" style="--stamp-color: var(--amber-600);" id="stampCard">
+            <div class="stamp" id="stampCircle"><div class="stamp-inner"><b id="stampPct">0%</b><span id="stampWord">en curso</span></div></div>
+            <div>
+              <p class="card-label" style="margin-bottom:4px;">Completitud global</p>
+              <p class="card-sub" style="margin-top:0;">de todos los campos, en todos los canales</p>
+            </div>
+          </div>
+          <div class="card">
+            <div class="tick">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            </div>
+            <p class="card-label">Canales registrados</p>
+            <p class="card-value" id="cardTotal">0</p>
+            <p class="card-sub" id="cardTotalSub"></p>
+          </div>
+          <div class="card">
+            <div class="tick" style="background:var(--amber-50); color:var(--amber-600);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            </div>
+            <p class="card-label">Lo que más falta</p>
+            <p class="card-value amber" id="cardWorstPct">0%</p>
+            <p class="card-sub" id="cardWorstField">—</p>
+          </div>
+          <div class="card">
+            <div class="tick" style="background:var(--green-50); color:var(--green-600);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-9"/></svg>
+            </div>
+            <p class="card-label">Lo que menos falta</p>
+            <p class="card-value green" id="cardBestPct">0%</p>
+            <p class="card-sub" id="cardBestField">—</p>
+          </div>
+        </div>
+
+        <p class="section-title" id="secIndicadores" data-scroll-target>% de canales a los que les falta cada dato <span class="count-chip" id="fieldsChip">12 campos</span></p>
+        <div class="panel">
+          <div id="barList"></div>
+        </div>
+
+        <p class="section-title" id="secLocalidades" data-scroll-target>Desgloses</p>
+        <div class="two-col">
+          <div class="panel">
+            <p class="card-label" style="margin-bottom:12px;">Por localidad</p>
+            <div id="byLocalidad" class="scroll-cap"></div>
+          </div>
+          <div class="panel">
+            <p class="card-label" style="margin-bottom:12px;">Por estado del canal</p>
+            <div id="byEstado" class="scroll-cap"></div>
+          </div>
+        </div>
+
+        <p class="section-title" id="secCanales" data-scroll-target>Explorar canales</p>
+        <div class="controls">
+          <div class="tabbtns">
+            <button class="active" data-view="list">Lista</button>
+            <button data-view="localidad">Agrupar por localidad</button>
+            <button data-view="estado">Agrupar por estado</button>
+          </div>
+          <input type="text" id="searchBox" placeholder="Buscar por nombre o barrio…">
+          <select id="filterLocalidad"><option value="">Todas las localidades</option></select>
+          <select id="filterEstado"><option value="">Todos los estados</option></select>
+          <label class="chk"><input type="checkbox" id="onlyIncomplete"> Solo con datos faltantes</label>
+          <span class="results-count" id="resultsCount"></span>
+        </div>
+
+        <div id="listView">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th data-key="id">ID</th>
+                  <th data-key="nombre">Canal</th>
+                  <th data-key="localidadNombre">Localidad</th>
+                  <th data-key="estado">Estado</th>
+                  <th data-key="disenios">Diseños</th>
+                  <th data-key="completeness">Completitud</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager">
+            <span id="pagerInfo">—</span>
+            <div class="pager-btns">
+              <button id="pagerFirst">« Primera</button>
+              <button id="pagerPrev">‹ Anterior</button>
+              <button id="pagerNext">Siguiente ›</button>
+              <button id="pagerLast">Última »</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="groupView" class="hidden"></div>
+
+      </div>
+
+      <p class="empty-note hidden" id="emptyNote">No se encontraron registros en la base de datos.</p>
+
+      <p class="section-title" id="secConfig" data-scroll-target>Configuración del sistema</p>
+      <div class="panel" style="display:grid; grid-template-columns:repeat(3,1fr); gap:18px 26px;">
+        <div>
+          <p class="card-label" style="margin-bottom:6px;">Proyecto Firebase</p>
+          <p style="margin:0; font-size:14px; color:var(--ink-900); font-weight:600;">canalesfluviales</p>
+        </div>
+        <div>
+          <p class="card-label" style="margin-bottom:6px;">Fuente de datos</p>
+          <p style="margin:0; font-size:14px; color:var(--ink-900); font-weight:600;">Realtime Database · nodo <code style="background:var(--surface-sunken); padding:1px 7px; border-radius:6px; font-family:'IBM Plex Mono', monospace; font-size:12.5px;">canales</code></p>
+        </div>
+        <div>
+          <p class="card-label" style="margin-bottom:6px;">Actualización</p>
+          <p style="margin:0; font-size:14px; color:var(--ink-900); font-weight:600;">Automática, en tiempo real</p>
+        </div>
+      </div>
+
+      <footer>Conectado en tiempo real a Firebase Realtime Database — los datos se leen directamente desde tu proyecto <code>canalesfluviales</code>.</footer>
+    </main>
   </div>
-
-  <p class="empty-note hidden" id="emptyNote">No se encontraron registros en la base de datos.</p>
-
-  <footer>Conectado en tiempo real a Firebase Realtime Database — los datos se leen directamente desde tu proyecto <code>canalesfluviales</code>.</footer>
 </div>
 
 <script type="module" src="app.js"></script>
+<script>
+  /* ——— Chrome decorativo nuevo: colapso de sidebar + reloj + estado del pill de conexión ———
+     No toca IDs, clases ni lógica del panel original (app.js sigue intacto). */
+  (function(){
+    var shell = document.getElementById('appShell');
+    var toggle = document.getElementById('sidebarToggle');
+    if (toggle) {
+      toggle.addEventListener('click', function(){
+        shell.classList.toggle('collapsed');
+      });
+    }
+
+    function tick(){
+      var el = document.getElementById('topbarClock');
+      if (el) {
+        el.textContent = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    tick();
+    setInterval(tick, 1000 * 30);
+
+    // Botones del menú lateral (Resumen ejecutivo / Indicadores / Canales /
+    // Localidades / Configuración): desplazan suavemente hasta la sección
+    // correspondiente y marcan el ítem activo. No interviene en la lógica
+    // ni en los datos de app.js, solo en la navegación visual.
+    var navItems = document.querySelectorAll('.navitem[data-goto]');
+    navItems.forEach(function(item){
+      var goToTarget = function(){
+        var target = document.getElementById(item.getAttribute('data-goto'));
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        navItems.forEach(function(n){ n.classList.remove('active'); });
+        item.classList.add('active');
+      };
+      item.addEventListener('click', goToTarget);
+      item.addEventListener('keydown', function(e){
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToTarget(); }
+      });
+    });
+
+    // Sincroniza el estilo del "pill" de conexión con las clases que app.js
+    // ya aplica a #liveDot (loading / err / — sin clase = ok).
+    var liveDot = document.getElementById('liveDot');
+    var connPill = document.getElementById('connPill');
+    if (liveDot && connPill) {
+      var sync = function(){
+        connPill.classList.remove('warn', 'err');
+        if (liveDot.classList.contains('loading')) connPill.classList.add('warn');
+        else if (liveDot.classList.contains('err')) connPill.classList.add('err');
+      };
+      new MutationObserver(sync).observe(liveDot, { attributes:true, attributeFilter:['class'] });
+      sync();
+    }
+  })();
+</script>
 </body>
 </html>
