@@ -197,6 +197,15 @@
       Nuevo Canal
     </button>
 
+    <button class="btn-add btn-add--boxculvert" id="btn-add-boxculvert" title="Añadir nuevo Box Culvert">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 20h20"/>
+        <path d="M4 20v-6a3 3 0 013-3h10a3 3 0 013 3v6"/>
+        <path d="M9 20v-5M14 20v-5"/>
+      </svg>
+      Box Culvert
+    </button>
+
     <button class="btn-readonly active" id="btn-readonly" title="Modo solo lectura activo — clic para editar">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       Solo lectura
@@ -237,10 +246,7 @@
       <button class="panel__close" id="panel-close">✕</button>
 
       <div class="panel__header">
-        <div class="panel__badge-row">
-          <div class="panel__badge" id="p-badge">—</div>
-          <div class="panel__etapa-badge" id="p-etapa-badge">—</div>
-        </div>
+        <div class="panel__badge" id="p-badge">—</div>
         <h2 class="panel__name" id="p-name">—</h2>
         <span class="panel__cuenca" id="p-cuenca">—</span>
       </div>
@@ -296,6 +302,10 @@
         <div class="panel__field">
           <span class="field-icon">🌊</span>
           <div><div class="field-label">Riesgo inundación</div><div class="field-value" id="p-riesgo">—</div></div>
+        </div>
+        <div class="panel__field">
+          <span class="field-icon">🚧</span>
+          <div><div class="field-label">Etapa del canal</div><div class="field-value"><span class="etapa-badge-inline" id="p-etapa-badge">—</span></div></div>
         </div>
         <div class="panel__field">
           <span class="field-icon">👤</span>
@@ -504,7 +514,7 @@
             </select>
           </div>
           <div class="modal__field">
-            <label class="modal__label">Número de beneficiarios</label>
+            <label class="modal__label">👤 Número de beneficiarios</label>
             <input class="modal__input" type="number" min="0" step="1" id="f-beneficiarios" placeholder="ej. 850" />
           </div>
         </div>
