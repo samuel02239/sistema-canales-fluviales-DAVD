@@ -47,6 +47,8 @@ const ADMIN_CREDENTIALS = {
    
 };
 
+const ETAPAS = ['Diagnóstico', 'Factibilidad', 'Diseño de detalle'];
+
 /* ─────────────────────────────────────────────────────────────
    ESTADO GLOBAL
    ───────────────────────────────────────────────────────────── */
@@ -98,6 +100,8 @@ function cleanForDB(c) {
     disenios:       c.disenios       || 'No',
     estado:         c.estado         || 'Regular',
     riesgo:         c.riesgo         || '—',
+    etapa:          c.etapa          || 'Diagnóstico',
+    beneficiarios:  Number.isFinite(c.beneficiarios) ? c.beneficiarios : (parseInt(c.beneficiarios) || 0),
     lat:            c.lat,
     lng:            c.lng,
     color:          c.color          || null,
@@ -108,6 +112,8 @@ function cleanForDB(c) {
     ficha:   c.ficha   || null,
     informe: c.informe || null,
     fotos:   Array.isArray(c.fotos)  ? c.fotos.filter(f => f && f.trim())  : [],
+    // Comentarios del ingeniero/administrador sobre el canal
+    comentarios: Array.isArray(c.comentarios) ? c.comentarios : [],
   };
 }
 
@@ -144,6 +150,9 @@ async function loadCanalesFromFirebase() {
       ...c,
       videos: Array.isArray(c.videos) ? c.videos : [],
       fotos:  Array.isArray(c.fotos)  ? c.fotos  : [],
+      comentarios: Array.isArray(c.comentarios) ? c.comentarios : [],
+      etapa: c.etapa || 'Diagnóstico',
+      beneficiarios: Number.isFinite(c.beneficiarios) ? c.beneficiarios : (parseInt(c.beneficiarios) || 0),
     }));
   } catch (e) {
     console.error('Error cargando desde Firebase:', e);
@@ -199,6 +208,7 @@ async function initApp() {
   initAdminToggle();
   initLoginModal();
   initModalMultimedia();
+  initComentarios();
 
   renderAll(canales, filteredCanales);
   applyAdminState();
@@ -383,6 +393,29 @@ function populatePanel(canal) {
   document.getElementById('p-disenios').textContent  = canal.disenios || '—';
   document.getElementById('p-riesgo').textContent    = canal.riesgo || '—';
   document.getElementById('p-coords').textContent    = `${canal.lat?.toFixed(5)}, ${canal.lng?.toFixed(5)}`;
+
+  // Etapa
+  const etapaBadge = document.getElementById('p-etapa-badge');
+  if (etapaBadge) {
+    const etapa = canal.etapa || 'Diagnóstico';
+    etapaBadge.textContent = etapa;
+    etapaBadge.dataset.etapa = etapa;
+  }
+
+  // Beneficiarios
+  const beneficiariosEl = document.getElementById('p-beneficiarios');
+  if (beneficiariosEl) {
+    const n = Number.isFinite(canal.beneficiarios) ? canal.beneficiarios : (parseInt(canal.beneficiarios) || 0);
+    beneficiariosEl.textContent = n > 0 ? `👤 ${n.toLocaleString('es-CO')}` : '—';
+  }
+
+  // Contador de comentarios en el botón "Saber más"
+  const comentariosCount = document.getElementById('p-comentarios-count');
+  if (comentariosCount) {
+    const total = Array.isArray(canal.comentarios) ? canal.comentarios.length : 0;
+    if (total > 0) { comentariosCount.style.display = 'inline-block'; comentariosCount.textContent = total; }
+    else           { comentariosCount.style.display = 'none'; }
+  }
 
   const dot   = document.getElementById('p-estado-dot');
   const label = document.getElementById('p-estado-label');
@@ -675,7 +708,8 @@ function openModal(canal, presetLat, presetLng) {
   document.getElementById('modal-error').textContent  = '';
 
   const fields = ['id','nombre','cuenca','localidad','barrio','longitud','inicio','final',
-                  'seccion','revestimiento','disenios','riesgo','estado','lat','lng'];
+                  'seccion','revestimiento','disenios','riesgo','estado','lat','lng',
+                  'etapa','beneficiarios'];
 
   fields.forEach(k => {
     const el = document.getElementById(`f-${k}`);
@@ -708,6 +742,8 @@ function openModal(canal, presetLat, presetLng) {
     document.getElementById('f-estado').value       = canal.estado       || '';
     document.getElementById('f-lat').value          = canal.lat          || '';
     document.getElementById('f-lng').value          = canal.lng          || '';
+    document.getElementById('f-etapa').value        = canal.etapa        || 'Diagnóstico';
+    document.getElementById('f-beneficiarios').value= Number.isFinite(canal.beneficiarios) ? canal.beneficiarios : (canal.beneficiarios || 0);
 
     // Rellenar multimedia
     (canal.videos || []).forEach(url => addLinkRow('videos-group', 'URL del video', url));
@@ -718,6 +754,8 @@ function openModal(canal, presetLat, presetLng) {
   } else {
     document.getElementById('f-id').disabled   = false;
     document.getElementById('f-disenios').value = 'No';
+    document.getElementById('f-etapa').value    = 'Diagnóstico';
+    document.getElementById('f-beneficiarios').value = '';
     if (presetLat !== undefined && presetLng !== undefined) {
       document.getElementById('f-lat').value = presetLat.toFixed(6);
       document.getElementById('f-lng').value = presetLng.toFixed(6);
@@ -786,6 +824,8 @@ async function saveModal() {
     disenios:        document.getElementById('f-disenios').value             || 'No',
     riesgo:          document.getElementById('f-riesgo').value               || '—',
     estado,
+    etapa:           document.getElementById('f-etapa').value                || 'Diagnóstico',
+    beneficiarios:   parseInt(document.getElementById('f-beneficiarios').value) || 0,
     lat, lng,
     trazado: null,
     color:   null,
@@ -798,12 +838,14 @@ async function saveModal() {
 
   if (editingId !== null) {
     const existing   = canales.find(c => c.id === editingId);
-    canalData.trazado= existing?.trazado || null;
-    canalData.color  = existing?.color   || null;
+    canalData.trazado    = existing?.trazado    || null;
+    canalData.color      = existing?.color      || null;
+    canalData.comentarios= existing?.comentarios|| [];
     const idx        = canales.findIndex(c => c.id === editingId);
     canales[idx]     = canalData;
     showToast(`Canal ${nombre} actualizado`, 'success');
   } else {
+    canalData.comentarios = [];
     canales.push(canalData);
     showToast(`Canal ${nombre} añadido`, 'success');
   }
@@ -820,6 +862,118 @@ async function saveModal() {
 
 function markError(id) {
   document.getElementById(id)?.classList.add('error');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   COMENTARIOS DEL CANAL ("Saber más sobre el canal")
+   ───────────────────────────────────────────────────────────── */
+let comentariosCanalId = null;
+
+function initComentarios() {
+  document.getElementById('p-btn-comentarios').addEventListener('click', () => {
+    if (activeCanal) openComentariosModal(activeCanal);
+  });
+  document.getElementById('comentarios-close').addEventListener('click', closeComentariosModal);
+  document.getElementById('comentarios-cerrar').addEventListener('click', closeComentariosModal);
+  document.getElementById('comentarios-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('comentarios-overlay')) closeComentariosModal();
+  });
+  document.getElementById('btn-add-comentario').addEventListener('click', addComentario);
+}
+
+function openComentariosModal(canal) {
+  comentariosCanalId = canal.id;
+  document.getElementById('comentarios-title').textContent = `Comentarios — ${canal.nombre}`;
+  document.getElementById('comentario-texto').value  = '';
+  document.getElementById('comentario-error').textContent = '';
+  renderComentarios(canal);
+  document.getElementById('comentarios-overlay').classList.add('open');
+}
+
+function closeComentariosModal() {
+  document.getElementById('comentarios-overlay').classList.remove('open');
+  comentariosCanalId = null;
+}
+
+function renderComentarios(canal) {
+  const list  = document.getElementById('comentarios-list');
+  const empty = document.getElementById('comentarios-empty');
+  const addBox= document.getElementById('comentarios-add');
+
+  const comentarios = Array.isArray(canal.comentarios) ? canal.comentarios : [];
+
+  if (comentarios.length === 0) {
+    list.innerHTML = '';
+    list.appendChild(empty);
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    // Mostrar los más recientes primero
+    const ordenados = [...comentarios].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    list.innerHTML = ordenados.map(c => `
+      <div class="comentario-item">
+        <div class="comentario-item__meta">
+          <span class="comentario-item__autor">👷 ${escapeHtml(c.autor || 'Ingeniero')}</span>
+          <span class="comentario-item__fecha">${formatFechaComentario(c.fecha)}</span>
+        </div>
+        <div class="comentario-item__texto">${escapeHtml(c.texto || '')}</div>
+      </div>
+    `).join('');
+  }
+
+  // Solo el administrador (ingeniero) puede agregar comentarios nuevos
+  if (addBox) addBox.style.display = isAdmin ? 'block' : 'none';
+}
+
+async function addComentario() {
+  if (!isAdmin || comentariosCanalId === null) return;
+
+  const textarea = document.getElementById('comentario-texto');
+  const errorEl   = document.getElementById('comentario-error');
+  const texto     = textarea.value.trim();
+  errorEl.textContent = '';
+
+  if (!texto) {
+    errorEl.textContent = 'Escribe un comentario antes de agregarlo.';
+    return;
+  }
+
+  const idx = canales.findIndex(c => c.id === comentariosCanalId);
+  if (idx === -1) return;
+
+  const nuevoComentario = {
+    texto,
+    autor: ADMIN_CREDENTIALS.user,
+    fecha: new Date().toISOString(),
+  };
+
+  canales[idx].comentarios = Array.isArray(canales[idx].comentarios) ? canales[idx].comentarios : [];
+  canales[idx].comentarios.push(nuevoComentario);
+
+  if (activeCanal?.id === comentariosCanalId) {
+    activeCanal.comentarios = canales[idx].comentarios;
+  }
+
+  await saveCanal(canales[idx]);
+
+  textarea.value = '';
+  renderComentarios(canales[idx]);
+  if (activeCanal?.id === comentariosCanalId) populatePanel(activeCanal);
+  showToast('Comentario agregado', 'success');
+}
+
+function formatFechaComentario(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 function openConfirmDelete(canal) {
