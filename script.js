@@ -54,18 +54,24 @@ const ETAPAS = ['Diagnóstico', 'Factibilidad', 'Diseño de detalle'];
    ───────────────────────────────────────────────────────────── */
 let canales         = [];
 let filteredCanales = [];
+let boxculverts        = [];
+let filteredBoxculverts= [];
 let map             = null;
 let markersLayer    = null;
 let linesLayer      = null;
+let bcMarkersLayer  = null;
 let activeMarker    = null;
 let activeCanal     = null;
+let activeEntityType= 'canal';   // 'canal' | 'boxculvert' — tipo de la entidad activa en el panel
 let editingId       = null;
+let editingType     = 'canal';   // 'canal' | 'boxculvert' — tipo de la entidad que se está editando en el modal
 
 let showPuntos  = true;
 let showLineas  = true;
 let isAdmin     = false;
 
 let pickPointMode = false;
+let pickPointType = 'canal'; // 'canal' | 'boxculvert' — qué se está creando al elegir un punto
 let drawMode      = false;
 let drawCanal     = null;
 let drawPoints    = [];
@@ -162,6 +168,56 @@ async function loadCanalesFromFirebase() {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   BOX CULVERTS — Persistencia separada en Firebase
+   Estructura: /boxculverts/{id} = objeto box culvert
+   (mismo esquema que un canal, pero en su propia colección para
+   no mezclarlos con los canales)
+   ───────────────────────────────────────────────────────────── */
+
+/** Guarda UN box culvert en Firebase */
+async function saveBoxculvert(entity) {
+  const data = cleanForDB(entity);
+  try {
+    await fbSet(`boxculverts/${entity.id}`, data);
+    showSyncIndicator('✓ Guardado en Firebase', 'ok');
+  } catch (e) {
+    console.error('Error guardando box culvert en Firebase:', e);
+    showSyncIndicator('✗ Error al guardar', 'error');
+  }
+}
+
+/** Elimina un box culvert de Firebase */
+async function removeBoxculvertFB(id) {
+  try {
+    await fbRemove(`boxculverts/${id}`);
+    showSyncIndicator('✓ Box culvert eliminado de Firebase', 'ok');
+  } catch (e) {
+    console.error('Error eliminando box culvert:', e);
+    showSyncIndicator('✗ Error al eliminar', 'error');
+  }
+}
+
+/** Carga todos los box culverts desde Firebase */
+async function loadBoxculvertsFromFirebase() {
+  try {
+    const data = await fbGet('boxculverts');
+    if (!data) return [];
+    return Object.values(data).map(c => ({
+      ...c,
+      videos: Array.isArray(c.videos) ? c.videos : [],
+      fotos:  Array.isArray(c.fotos)  ? c.fotos  : [],
+      comentarios: Array.isArray(c.comentarios) ? c.comentarios : [],
+      etapa: c.etapa || 'Diagnóstico',
+      beneficiarios: Number.isFinite(c.beneficiarios) ? c.beneficiarios : (parseInt(c.beneficiarios) || 0),
+    }));
+  } catch (e) {
+    console.error('Error cargando box culverts desde Firebase:', e);
+    showSyncIndicator('✗ Error al cargar datos', 'error');
+    return [];
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
    SYNC INDICATOR
    ───────────────────────────────────────────────────────────── */
 let _syncIndicatorTimer = null;
@@ -199,6 +255,9 @@ async function initApp() {
   canales = await loadCanalesFromFirebase();
   filteredCanales = [...canales];
 
+  boxculverts = await loadBoxculvertsFromFirebase();
+  filteredBoxculverts = [...boxculverts];
+
   initMap();
   initLegend();
   initFilters();
@@ -211,6 +270,7 @@ async function initApp() {
   initComentarios();
 
   renderAll(canales, filteredCanales);
+  renderBoxculverts();
   applyAdminState();
 }
 
@@ -256,15 +316,17 @@ function initMap() {
 
   linesLayer   = L.layerGroup().addTo(map);
   markersLayer = L.layerGroup().addTo(map);
+  bcMarkersLayer = L.layerGroup().addTo(map);
 
   map.on('click', (e) => {
     if (drawMode)      { addDrawPoint(e.latlng); return; }
     if (pickPointMode) { finishPickPoint(e.latlng); return; }
     if (activeMarker) {
-      activeMarker.getElement()?.querySelector('.canal-marker')?.classList.remove('active');
+      getMarkerEl(activeMarker)?.classList.remove('active');
       activeMarker = null;
     }
     activeCanal = null;
+    activeEntityType = 'canal';
     closePanel();
   });
 
@@ -318,6 +380,11 @@ function drawCanalLine(canal) {
 /* ─────────────────────────────────────────────────────────────
    MARCADORES
    ───────────────────────────────────────────────────────────── */
+/** Obtiene el elemento visual interno de un marker, sea canal o box culvert */
+function getMarkerEl(marker) {
+  return marker?.getElement?.()?.querySelector('.canal-marker, .bc-marker');
+}
+
 function createMarker(canal) {
   const estadoClass = getEstadoClass(canal.estado);
   const customColor = canal.color || null;
@@ -360,28 +427,92 @@ function createMarker(canal) {
   });
 
   marker._canal = canal;
+  marker._entityType = 'canal';
   return marker;
 }
 
-function selectMarker(marker, canal) {
+/** Crea el marcador de un Box Culvert — ícono distinto al del canal */
+function createBoxculvertMarker(bc) {
+  const estadoClass = getEstadoClass(bc.estado);
+  const customColor = bc.color || null;
+  const colorStyle  = customColor ? `background:${customColor}!important;` : '';
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="bc-marker ${estadoClass}" data-id="${bc.id}" style="${colorStyle}">
+             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M2 20h20"/>
+               <path d="M4 20v-6a3 3 0 013-3h10a3 3 0 013 3v6"/>
+               <path d="M9 20v-5M14 20v-5"/>
+             </svg>
+           </div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -34]
+  });
+
+  const marker = L.marker([bc.lat, bc.lng], { icon, draggable: isAdmin });
+
+  marker.bindTooltip(
+    `<strong>${bc.nombre}</strong><br/><span style="color:#6b7c99;font-size:10px">Box Culvert #${bc.id} · ${bc.estado}</span>`,
+    { className: 'canal-tooltip', direction: 'top', offset: [0, -8] }
+  );
+
+  marker.on('click', (e) => {
+    if (drawMode) return;
+    e.originalEvent.stopPropagation();
+    selectMarker(marker, bc, 'boxculvert');
+  });
+
+  marker.on('dragend', async (e) => {
+    const newLatLng = e.target.getLatLng();
+    const idx = boxculverts.findIndex(c => c.id === bc.id);
+    if (idx !== -1) {
+      boxculverts[idx].lat = parseFloat(newLatLng.lat.toFixed(6));
+      boxculverts[idx].lng = parseFloat(newLatLng.lng.toFixed(6));
+      bc.lat = boxculverts[idx].lat;
+      bc.lng = boxculverts[idx].lng;
+      await saveBoxculvert(boxculverts[idx]);
+      if (activeEntityType === 'boxculvert' && activeCanal?.id === bc.id) {
+        document.getElementById('p-coords').textContent = `${bc.lat.toFixed(5)}, ${bc.lng.toFixed(5)}`;
+      }
+      showToast(`Posición de ${bc.nombre} actualizada`, 'success');
+    }
+  });
+
+  marker._canal = bc;
+  marker._entityType = 'boxculvert';
+  return marker;
+}
+
+/** Dibuja todos los marcadores de box culverts en su propia capa */
+function renderBoxculverts() {
+  if (!bcMarkersLayer) return;
+  bcMarkersLayer.clearLayers();
+  boxculverts.forEach(bc => {
+    createBoxculvertMarker(bc).addTo(bcMarkersLayer);
+  });
+}
+
+function selectMarker(marker, canal, type = 'canal') {
   if (activeMarker && activeMarker !== marker) {
-    activeMarker.getElement()?.querySelector('.canal-marker')?.classList.remove('active');
+    getMarkerEl(activeMarker)?.classList.remove('active');
   }
-  marker.getElement()?.querySelector('.canal-marker')?.classList.add('active');
+  getMarkerEl(marker)?.classList.add('active');
   activeMarker = marker;
   activeCanal  = canal;
+  activeEntityType = type;
   map.panTo([canal.lat, canal.lng], { animate: true, duration: 0.5 });
-  populatePanel(canal);
+  populatePanel(canal, type);
   openPanel();
 }
 
 /* ─────────────────────────────────────────────────────────────
    PANEL LATERAL
    ───────────────────────────────────────────────────────────── */
-function populatePanel(canal) {
+function populatePanel(canal, type = 'canal') {
   const estadoClass = getEstadoClass(canal.estado);
+  const esBoxculvert = type === 'boxculvert';
 
-  document.getElementById('p-badge').textContent     = `CANAL #${canal.id}`;
+  document.getElementById('p-badge').textContent     = esBoxculvert ? `BOX CULVERT #${canal.id}` : `CANAL #${canal.id}`;
   document.getElementById('p-name').textContent      = canal.nombre;
   document.getElementById('p-cuenca').textContent    = `Cuenca ${canal.cuenca}`;
   document.getElementById('p-localidad').textContent = `${canal.localidad} – ${canal.localidadNombre}`;
@@ -423,17 +554,27 @@ function populatePanel(canal) {
   label.textContent = canal.estado;
   label.style.color = getEstadoColor(canal.estado);
 
-  // Trazado
+  // Trazado — no aplica a Box Culverts (son estructuras puntuales)
+  const trazadoSection  = document.getElementById('p-trazado-section');
   const trazadoInfo     = document.getElementById('p-trazado-info');
   const deleteTrazadoBtn= document.getElementById('p-btn-delete-trazado');
-  if (canal.trazado && canal.trazado.length >= 2) {
-    trazadoInfo.textContent = `${canal.trazado.length} puntos registrados`;
-    trazadoInfo.className   = 'trazado-info has-trazado';
-    if (deleteTrazadoBtn) { deleteTrazadoBtn.style.display = 'inline-flex'; deleteTrazadoBtn.disabled = !isAdmin; }
+  const drawBtnEl        = document.getElementById('p-btn-draw');
+
+  if (esBoxculvert) {
+    if (trazadoSection) trazadoSection.style.display = 'none';
+    if (drawBtnEl)       drawBtnEl.style.display      = 'none';
   } else {
-    trazadoInfo.textContent = 'Sin trazado registrado';
-    trazadoInfo.className   = 'trazado-info';
-    if (deleteTrazadoBtn) deleteTrazadoBtn.style.display = 'none';
+    if (trazadoSection) trazadoSection.style.display = '';
+    if (drawBtnEl)       drawBtnEl.style.display      = '';
+    if (canal.trazado && canal.trazado.length >= 2) {
+      trazadoInfo.textContent = `${canal.trazado.length} puntos registrados`;
+      trazadoInfo.className   = 'trazado-info has-trazado';
+      if (deleteTrazadoBtn) { deleteTrazadoBtn.style.display = 'inline-flex'; deleteTrazadoBtn.disabled = !isAdmin; }
+    } else {
+      trazadoInfo.textContent = 'Sin trazado registrado';
+      trazadoInfo.className   = 'trazado-info';
+      if (deleteTrazadoBtn) deleteTrazadoBtn.style.display = 'none';
+    }
   }
 
   // Color
@@ -538,10 +679,11 @@ function updatePanelButtons() {
 
 document.getElementById('panel-close').addEventListener('click', () => {
   if (activeMarker) {
-    activeMarker.getElement()?.querySelector('.canal-marker')?.classList.remove('active');
+    getMarkerEl(activeMarker)?.classList.remove('active');
     activeMarker = null;
   }
   activeCanal = null;
+  activeEntityType = 'canal';
   closePanel();
 });
 
@@ -568,7 +710,7 @@ function applyFilters() {
     return matchL && matchE;
   });
 
-  if (activeMarker) {
+  if (activeMarker && activeMarker._entityType !== 'boxculvert') {
     const id = activeMarker._canal?.id;
     if (!filteredCanales.find(c => c.id === id)) {
       closePanel(); activeMarker = null; activeCanal = null;
@@ -607,50 +749,73 @@ function applyLayerVisibility() {
 function initCRUD() {
   document.getElementById('btn-add-canal').addEventListener('click', () => {
     if (!isAdmin) { showToast('🔒 Modo solo lectura. Active el modo admin para continuar.', 'warn'); return; }
-    startPickPointMode();
+    startPickPointMode('canal');
   });
+
+  const btnAddBc = document.getElementById('btn-add-boxculvert');
+  if (btnAddBc) {
+    btnAddBc.addEventListener('click', () => {
+      if (!isAdmin) { showToast('🔒 Modo solo lectura. Active el modo admin para continuar.', 'warn'); return; }
+      startPickPointMode('boxculvert');
+    });
+  }
 
   document.getElementById('p-btn-edit').addEventListener('click', () => {
     if (!isAdmin) { showToast('🔒 Modo solo lectura. Active el modo admin para continuar.', 'warn'); return; }
-    if (activeCanal) openModal(activeCanal);
+    if (activeCanal) openModal(activeCanal, undefined, undefined, activeEntityType);
   });
 
   document.getElementById('p-btn-draw').addEventListener('click', () => {
     if (!isAdmin) { showToast('🔒 Modo solo lectura. Active el modo admin para continuar.', 'warn'); return; }
-    if (activeCanal) startDrawMode(activeCanal);
+    if (activeCanal && activeEntityType === 'canal') startDrawMode(activeCanal);
   });
 
   document.getElementById('p-btn-delete').addEventListener('click', () => {
     if (!isAdmin) { showToast('🔒 Modo solo lectura. Active el modo admin para continuar.', 'warn'); return; }
-    if (activeCanal) openConfirmDelete(activeCanal);
+    if (activeCanal) openConfirmDelete(activeCanal, activeEntityType);
   });
 
   document.getElementById('p-btn-delete-trazado').addEventListener('click', async () => {
-    if (!isAdmin || !activeCanal) return;
+    if (!isAdmin || !activeCanal || activeEntityType !== 'canal') return;
     const idx = canales.findIndex(c => c.id === activeCanal.id);
     if (idx !== -1) {
       canales[idx].trazado = null;
       activeCanal.trazado  = null;
       await saveCanal(canales[idx]);
       applyFilters();
-      populatePanel(activeCanal);
+      populatePanel(activeCanal, 'canal');
       showToast(`Trazado de ${activeCanal.nombre} eliminado`, 'info');
     }
   });
 
   document.getElementById('p-color-input').addEventListener('input', async (e) => {
     if (!isAdmin || !activeCanal) return;
-    const idx = canales.findIndex(c => c.id === activeCanal.id);
-    if (idx !== -1) {
-      canales[idx].color  = e.target.value;
-      activeCanal.color   = e.target.value;
-      await saveCanal(canales[idx]);
-      applyFilters();
-      setTimeout(() => {
-        markersLayer.eachLayer(marker => {
-          if (marker._canal?.id === activeCanal.id) activeMarker = marker;
-        });
-      }, 50);
+    if (activeEntityType === 'boxculvert') {
+      const idx = boxculverts.findIndex(c => c.id === activeCanal.id);
+      if (idx !== -1) {
+        boxculverts[idx].color = e.target.value;
+        activeCanal.color      = e.target.value;
+        await saveBoxculvert(boxculverts[idx]);
+        renderBoxculverts();
+        setTimeout(() => {
+          bcMarkersLayer.eachLayer(marker => {
+            if (marker._canal?.id === activeCanal.id) activeMarker = marker;
+          });
+        }, 50);
+      }
+    } else {
+      const idx = canales.findIndex(c => c.id === activeCanal.id);
+      if (idx !== -1) {
+        canales[idx].color  = e.target.value;
+        activeCanal.color   = e.target.value;
+        await saveCanal(canales[idx]);
+        applyFilters();
+        setTimeout(() => {
+          markersLayer.eachLayer(marker => {
+            if (marker._canal?.id === activeCanal.id) activeMarker = marker;
+          });
+        }, 50);
+      }
     }
   });
 
@@ -699,12 +864,19 @@ function clearLinkGroup(groupId) {
   document.getElementById(groupId).innerHTML = '';
 }
 
-function openModal(canal, presetLat, presetLng) {
+function openModal(canal, presetLat, presetLng, type = 'canal') {
   if (!isAdmin) return;
   editingId   = canal ? canal.id : null;
+  editingType = type;
   const isEdit= canal !== null;
+  const esBc  = type === 'boxculvert';
 
-  document.getElementById('modal-title').textContent  = isEdit ? `Editar — ${canal.nombre}` : 'Nuevo Canal';
+  const idLabel = document.getElementById('f-id')?.closest('.modal__field')?.querySelector('.modal__label');
+  if (idLabel) idLabel.textContent = esBc ? 'ID Box Culvert *' : 'ID Canal *';
+
+  document.getElementById('modal-title').textContent = isEdit
+    ? `Editar — ${canal.nombre}`
+    : (esBc ? 'Nuevo Box Culvert' : 'Nuevo Canal');
   document.getElementById('modal-error').textContent  = '';
 
   const fields = ['id','nombre','cuenca','localidad','barrio','longitud','inicio','final',
@@ -759,7 +931,7 @@ function openModal(canal, presetLat, presetLng) {
     if (presetLat !== undefined && presetLng !== undefined) {
       document.getElementById('f-lat').value = presetLat.toFixed(6);
       document.getElementById('f-lng').value = presetLng.toFixed(6);
-      showToast('📍 Coordenadas capturadas del mapa', 'success');
+      showToast(esBc ? '📍 Coordenadas capturadas del mapa (Box Culvert)' : '📍 Coordenadas capturadas del mapa', 'success');
     }
     // Un input vacío por defecto en videos y fotos
     addLinkRow('videos-group', 'URL del video');
@@ -771,12 +943,18 @@ function openModal(canal, presetLat, presetLng) {
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
-  editingId = null;
+  editingId   = null;
+  editingType = 'canal';
 }
 
 async function saveModal() {
   const err = document.getElementById('modal-error');
   err.textContent = '';
+
+  const type      = editingType || 'canal';
+  const esBc      = type === 'boxculvert';
+  const targetArr = esBc ? boxculverts : canales;
+  const entLabel  = esBc ? 'Box Culvert' : 'canal';
 
   const id        = parseInt(document.getElementById('f-id').value);
   const nombre    = document.getElementById('f-nombre').value.trim();
@@ -794,9 +972,9 @@ async function saveModal() {
   if (isNaN(lng))          { markError('f-lng');        hasError = true; }
   if (hasError) { err.textContent = 'Completa los campos obligatorios (*)'; return; }
 
-  if (editingId === null && canales.find(c => c.id === id)) {
+  if (editingId === null && targetArr.find(c => c.id === id)) {
     markError('f-id');
-    err.textContent = `Ya existe un canal con ID ${id}`;
+    err.textContent = `Ya existe un ${entLabel} con ID ${id}`;
     return;
   }
 
@@ -837,26 +1015,34 @@ async function saveModal() {
   };
 
   if (editingId !== null) {
-    const existing   = canales.find(c => c.id === editingId);
+    const existing   = targetArr.find(c => c.id === editingId);
     canalData.trazado    = existing?.trazado    || null;
     canalData.color      = existing?.color      || null;
     canalData.comentarios= existing?.comentarios|| [];
-    const idx        = canales.findIndex(c => c.id === editingId);
-    canales[idx]     = canalData;
-    showToast(`Canal ${nombre} actualizado`, 'success');
+    const idx        = targetArr.findIndex(c => c.id === editingId);
+    targetArr[idx]   = canalData;
+    showToast(`${entLabel === 'canal' ? 'Canal' : entLabel} ${nombre} actualizado`, 'success');
   } else {
     canalData.comentarios = [];
-    canales.push(canalData);
-    showToast(`Canal ${nombre} añadido`, 'success');
+    targetArr.push(canalData);
+    showToast(`${entLabel === 'canal' ? 'Canal' : entLabel} ${nombre} añadido`, 'success');
   }
 
-  await saveCanal(canalData);
-  closeModal();
-  applyFilters();
+  const wasEditingId = editingId;
 
-  if (editingId !== null && activeCanal?.id === editingId) {
+  if (esBc) {
+    await saveBoxculvert(canalData);
+    closeModal();
+    renderBoxculverts();
+  } else {
+    await saveCanal(canalData);
+    closeModal();
+    applyFilters();
+  }
+
+  if (wasEditingId !== null && activeCanal?.id === wasEditingId && activeEntityType === type) {
     activeCanal = canalData;
-    populatePanel(canalData);
+    populatePanel(canalData, type);
   }
 }
 
@@ -871,7 +1057,7 @@ let comentariosCanalId = null;
 
 function initComentarios() {
   document.getElementById('p-btn-comentarios').addEventListener('click', () => {
-    if (activeCanal) openComentariosModal(activeCanal);
+    if (activeCanal) openComentariosModal(activeCanal, activeEntityType);
   });
   document.getElementById('comentarios-close').addEventListener('click', closeComentariosModal);
   document.getElementById('comentarios-cerrar').addEventListener('click', closeComentariosModal);
@@ -881,8 +1067,11 @@ function initComentarios() {
   document.getElementById('btn-add-comentario').addEventListener('click', addComentario);
 }
 
-function openComentariosModal(canal) {
-  comentariosCanalId = canal.id;
+let comentariosEntityType = 'canal';
+
+function openComentariosModal(canal, type = 'canal') {
+  comentariosCanalId   = canal.id;
+  comentariosEntityType= type;
   document.getElementById('comentarios-title').textContent = `Comentarios — ${canal.nombre}`;
   document.getElementById('comentario-texto').value  = '';
   document.getElementById('comentario-error').textContent = '';
@@ -938,7 +1127,9 @@ async function addComentario() {
     return;
   }
 
-  const idx = canales.findIndex(c => c.id === comentariosCanalId);
+  const esBc      = comentariosEntityType === 'boxculvert';
+  const targetArr = esBc ? boxculverts : canales;
+  const idx       = targetArr.findIndex(c => c.id === comentariosCanalId);
   if (idx === -1) return;
 
   const nuevoComentario = {
@@ -947,18 +1138,21 @@ async function addComentario() {
     fecha: new Date().toISOString(),
   };
 
-  canales[idx].comentarios = Array.isArray(canales[idx].comentarios) ? canales[idx].comentarios : [];
-  canales[idx].comentarios.push(nuevoComentario);
+  targetArr[idx].comentarios = Array.isArray(targetArr[idx].comentarios) ? targetArr[idx].comentarios : [];
+  targetArr[idx].comentarios.push(nuevoComentario);
 
-  if (activeCanal?.id === comentariosCanalId) {
-    activeCanal.comentarios = canales[idx].comentarios;
+  if (activeCanal?.id === comentariosCanalId && activeEntityType === comentariosEntityType) {
+    activeCanal.comentarios = targetArr[idx].comentarios;
   }
 
-  await saveCanal(canales[idx]);
+  if (esBc) await saveBoxculvert(targetArr[idx]);
+  else      await saveCanal(targetArr[idx]);
 
   textarea.value = '';
-  renderComentarios(canales[idx]);
-  if (activeCanal?.id === comentariosCanalId) populatePanel(activeCanal);
+  renderComentarios(targetArr[idx]);
+  if (activeCanal?.id === comentariosCanalId && activeEntityType === comentariosEntityType) {
+    populatePanel(activeCanal, comentariosEntityType);
+  }
   showToast('Comentario agregado', 'success');
 }
 
@@ -976,17 +1170,19 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function openConfirmDelete(canal) {
+function openConfirmDelete(canal, type = 'canal') {
   if (!isAdmin) return;
+  const esBc = type === 'boxculvert';
   document.getElementById('confirm-text').textContent =
-    `¿Eliminar "${canal.nombre}" (Canal #${canal.id})? Esta acción no se puede deshacer.`;
+    `¿Eliminar "${canal.nombre}" (${esBc ? 'Box Culvert' : 'Canal'} #${canal.id})? Esta acción no se puede deshacer.`;
 
   const btn    = document.getElementById('confirm-ok');
   const newBtn = btn.cloneNode(true);
   btn.parentNode.replaceChild(newBtn, btn);
 
   newBtn.addEventListener('click', () => {
-    deleteCanal(canal.id);
+    if (esBc) deleteBoxculvert(canal.id);
+    else      deleteCanal(canal.id);
     document.getElementById('confirm-overlay').classList.remove('open');
   });
 
@@ -1001,18 +1197,34 @@ async function deleteCanal(id) {
   closePanel();
   activeMarker = null;
   activeCanal  = null;
+  activeEntityType = 'canal';
   applyFilters();
   showToast(`Canal ${canal?.nombre} eliminado`, 'info');
+}
+
+async function deleteBoxculvert(id) {
+  if (!isAdmin) return;
+  const bc    = boxculverts.find(c => c.id === id);
+  boxculverts = boxculverts.filter(c => c.id !== id);
+  await removeBoxculvertFB(id);
+  closePanel();
+  activeMarker = null;
+  activeCanal  = null;
+  activeEntityType = 'canal';
+  renderBoxculverts();
+  showToast(`Box Culvert ${bc?.nombre} eliminado`, 'info');
 }
 
 /* ─────────────────────────────────────────────────────────────
    PICK POINT MODE
    ───────────────────────────────────────────────────────────── */
-function startPickPointMode() {
+function startPickPointMode(type = 'canal') {
   if (!isAdmin) return;
   pickPointMode = true;
+  pickPointType = type;
+  const esBc = type === 'boxculvert';
   document.body.classList.add('pick-point-mode');
-  showToast('📍 Haz clic en el mapa para ubicar el nuevo canal', 'info');
+  showToast(esBc ? '📍 Haz clic en el mapa para ubicar el nuevo Box Culvert' : '📍 Haz clic en el mapa para ubicar el nuevo canal', 'info');
 
   let banner = document.getElementById('pick-point-banner');
   if (!banner) {
@@ -1025,18 +1237,18 @@ function startPickPointMode() {
       z-index:9999; display:flex; align-items:center; gap:10px;
       box-shadow:0 4px 20px rgba(0,0,0,0.5);
     `;
-    banner.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4d9fff" stroke-width="2">
-        <circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"/>
-      </svg>
-      <span>Haz clic en el mapa para ubicar el nuevo canal</span>
-      <button onclick="cancelPickPointMode()" style="
-        background:transparent; border:1px solid #4d6380; color:#94a3b8;
-        border-radius:6px; padding:3px 10px; cursor:pointer; font-size:12px; margin-left:8px;
-      ">Cancelar</button>
-    `;
     document.body.appendChild(banner);
   }
+  banner.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4d9fff" stroke-width="2">
+      <circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 7 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"/>
+    </svg>
+    <span>${esBc ? 'Haz clic en el mapa para ubicar el nuevo Box Culvert' : 'Haz clic en el mapa para ubicar el nuevo canal'}</span>
+    <button onclick="cancelPickPointMode()" style="
+      background:transparent; border:1px solid #4d6380; color:#94a3b8;
+      border-radius:6px; padding:3px 10px; cursor:pointer; font-size:12px; margin-left:8px;
+    ">Cancelar</button>
+  `;
   banner.style.display = 'flex';
 }
 
@@ -1046,7 +1258,7 @@ function finishPickPoint(latlng) {
   document.body.classList.remove('pick-point-mode');
   const banner = document.getElementById('pick-point-banner');
   if (banner) banner.style.display = 'none';
-  openModal(null, latlng.lat, latlng.lng);
+  openModal(null, latlng.lat, latlng.lng, pickPointType);
 }
 
 window.cancelPickPointMode = function () {
@@ -1297,6 +1509,7 @@ function handleLogin() {
 function applyAdminState() {
   const btn    = document.getElementById('btn-readonly');
   const addBtn = document.getElementById('btn-add-canal');
+  const addBcBtn = document.getElementById('btn-add-boxculvert');
 
   if (isAdmin) {
     document.body.classList.add('admin-mode');
@@ -1312,6 +1525,7 @@ function applyAdminState() {
       </svg>
       Modo admin activo`;
     addBtn.disabled = false;
+    if (addBcBtn) addBcBtn.disabled = false;
   } else {
     document.body.classList.remove('admin-mode');
     document.body.classList.add('readonly');
@@ -1324,11 +1538,17 @@ function applyAdminState() {
       </svg>
       Solo lectura`;
     addBtn.disabled = true;
+    if (addBcBtn) addBcBtn.disabled = true;
   }
 
   markersLayer.eachLayer(m => {
     if (m.dragging) { isAdmin ? m.dragging.enable() : m.dragging.disable(); }
   });
+  if (bcMarkersLayer) {
+    bcMarkersLayer.eachLayer(m => {
+      if (m.dragging) { isAdmin ? m.dragging.enable() : m.dragging.disable(); }
+    });
+  }
 
   if (activeCanal) updatePanelButtons();
 }
