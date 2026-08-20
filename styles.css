@@ -881,3 +881,117 @@ body.draw-mode .leaflet-container { cursor: crosshair !important; }
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════
+   EXTENSIÓN — Etapas, Beneficiarios y Comentarios
+   ═══════════════════════════════════════════════ */
+
+/* ─── Badge de etapa (junto al badge de canal) ─── */
+.panel__badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.panel__badge-row .panel__badge { margin-bottom: 0; }
+
+.panel__etapa-badge {
+  font-family: var(--font-mono); font-size: 10px;
+  border-radius: 4px; padding: 2px 8px; display: inline-block;
+  letter-spacing: 0.5px; border: 1px solid transparent;
+  background: rgba(107,124,153,0.15); color: var(--c-muted);
+  border-color: rgba(107,124,153,0.3);
+}
+.panel__etapa-badge[data-etapa="Diagnóstico"] {
+  color: var(--c-gold); background: rgba(245,166,35,0.12); border-color: rgba(245,166,35,0.3);
+}
+.panel__etapa-badge[data-etapa="Factibilidad"] {
+  color: var(--c-blue-light); background: rgba(77,159,255,0.12); border-color: rgba(77,159,255,0.3);
+}
+.panel__etapa-badge[data-etapa="Diseño de detalle"] {
+  color: var(--c-good); background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.3);
+}
+
+/* ─── Botón "Saber más sobre el canal" ─── */
+.panel__comentarios-section {
+  padding: 12px 20px;
+  border-top: 1px solid var(--c-border);
+}
+
+.btn-saber-mas {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 500; font-family: var(--font-sans);
+  cursor: pointer;
+  border: 1px solid rgba(77,159,255,0.3);
+  background: rgba(77,159,255,0.1); color: var(--c-blue-light);
+  transition: background var(--transition), border-color var(--transition);
+}
+.btn-saber-mas:hover { background: rgba(77,159,255,0.2); border-color: var(--c-blue-light); }
+
+.btn-saber-mas__count {
+  background: var(--c-blue-light); color: #06121f;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  border-radius: 20px; padding: 1px 7px; line-height: 1.4;
+}
+
+/* ─── Modal de comentarios ─── */
+.modal--comentarios { width: min(94vw, 480px); }
+
+.comentarios-list {
+  max-height: 320px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 4px;
+}
+
+.comentarios-empty {
+  font-size: 12px; color: var(--c-muted);
+  text-align: center; padding: 18px 10px;
+  border: 1px dashed var(--c-border2); border-radius: 8px;
+}
+
+.comentario-item {
+  background: var(--c-surface2);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.comentario-item__meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.comentario-item__autor {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--c-teal); letter-spacing: 0.4px; text-transform: uppercase;
+}
+
+.comentario-item__fecha {
+  font-size: 10px; color: var(--c-muted); font-family: var(--font-mono);
+}
+
+.comentario-item__texto {
+  font-size: 13px; line-height: 1.45; color: var(--c-text);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.comentarios-add {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.comentario-textarea {
+  width: 100%; resize: vertical; min-height: 64px;
+  font-family: var(--font-sans);
+  line-height: 1.4;
+}
+
+.comentarios-add__footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: 8px;
+}
+.comentarios-add__footer .modal__error { margin: 0; flex: 1; }
